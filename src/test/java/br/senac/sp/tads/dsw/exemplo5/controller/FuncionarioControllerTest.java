@@ -10,6 +10,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.senac.sp.tads.dsw.exemplo5.model.Departamento;
+import br.senac.sp.tads.dsw.exemplo5.model.Funcionario;
 import br.senac.sp.tads.dsw.exemplo5.repository.DepartamentoRepository;
 import br.senac.sp.tads.dsw.exemplo5.repository.FuncionarioRepository;
 import tools.jackson.databind.ObjectMapper;
@@ -21,6 +22,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDate;
 import java.util.concurrent.ExecutionException;
 
 // Import para podermos utilizar o status()
@@ -58,32 +60,128 @@ public class FuncionarioControllerTest {
 
     @Test 
     void deveCriarFuncionarioComSucesso() throws Exception{
-        
+
+        Funcionario funcionario = new Funcionario();
+        funcionario.setNome("Funcionario Senac");
+        funcionario.setDataContratacao(LocalDate.now());
+        funcionario.setTrabalhoRemoto(true);
+        funcionario.setDepartamento(departamentoPadrao);
+
+        String json = objectMapper.writeValueAsString(funcionario);
+
+        mockMvc.perform(
+                post("/api/funcionarios").contentType(MediaType.APPLICATION_JSON)
+                    .content(json)
+        )
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.nome").value("Funcionario Senac"))
+                .andExpect(jsonPath("$.dataContratacao")
+                .value(LocalDate.now().toString()))
+                .andExpect(jsonPath("$.trabalhoRemoto").value(true))
+                .andExpect(jsonPath("$.departamento.nome")
+                .value("Departamento padrão"));
     }
 
     @Test 
     void deveRetornarErro400AoCriarFuncionarioComDataFutura() throws Exception{
-        
+
+        Funcionario funcionario = new Funcionario();
+        funcionario.setNome("Funcionario Senac");
+        funcionario.setDataContratacao(LocalDate.now().plusDays(1));
+        funcionario.setTrabalhoRemoto(false);
+        funcionario.setDepartamento(departamentoPadrao);
+
+        String json = objectMapper.writeValueAsString(funcionario);
+
+        mockMvc.perform( post("/api/funcionarios")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json)
+        ).andExpect(status().isBadRequest());        
     }
 
     @Test 
     void deveListarTodosOsFunionarios() throws Exception{
         
+        Funcionario funcionario = new Funcionario();
+        funcionario.setNome("Funcionario Senac");
+        funcionario.setDataContratacao(LocalDate.now());
+        funcionario.setTrabalhoRemoto(true);
+        funcionario.setDepartamento(departamentoPadrao);
+
+        funcionarioRepository.save(funcionario);
+
+        mockMvc.perform(get("/api/funcionarios"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").exists())
+                .andExpect(jsonPath("$[0].nome")
+                .value("Funcionario Senac"));
+
     }
 
     @Test 
     void deveBuscarFuncionarioPorId() throws Exception{
 
+        Funcionario funcionario= new Funcionario();
+        funcionario.setNome("Funcionario Senac");
+        funcionario.setDataContratacao(LocalDate.now());
+        funcionario.setTrabalhoRemoto(true);
+        funcionario.setDepartamento(departamentoPadrao);
+
+        Funcionario funcionarioSalvo = funcionarioRepository.save(funcionario);
+
+        mockMvc.perform(get("/api/funcionarios/"+ funcionarioSalvo.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(funcionarioSalvo.getId()))
+                .andExpect(jsonPath("$.nome").value("Funcionario Senac"))
+                .andExpect(jsonPath("$.dataContratacao").value(LocalDate.now().toString()))
+                .andExpect(jsonPath("$.trabalhoRemoto").value(true));
     }
 
     @Test
     void deveAtualizarFuncionario() throws Exception{
 
+        Funcionario funcionario = new Funcionario();
+        funcionario.setNome("Funcionario Senac");
+        funcionario.setDataContratacao(LocalDate.now());
+        funcionario.setTrabalhoRemoto(true);
+        funcionario.setDepartamento(departamentoPadrao);
+
+        Funcionario funcionarioSalvo = funcionarioRepository.save(funcionario);
+
+        funcionarioSalvo.setNome("Senacudo atualizado");
+        funcionarioSalvo.setTrabalhoRemoto(false);
+
+        String json = objectMapper.writeValueAsString(funcionarioSalvo);
+
+        mockMvc.perform( put("/api/funcionarios/" + funcionarioSalvo.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json)
+        )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nome").value("Senacudo atualizado"))
+                .andExpect(jsonPath("$.trabalhoRemoto").value(false))
+                .andExpect(jsonPath("$.dataContratacao").value(LocalDate.now().toString()));
     }
 
     @Test 
     void deveDeletarFuncionario() throws Exception{
 
+        Funcionario funcionario = new Funcionario();
+        funcionario.setNome("Funcionario Senac");
+        funcionario.setDataContratacao(LocalDate.now());
+        funcionario.setTrabalhoRemoto(true);
+        funcionario.setDepartamento(departamentoPadrao);
+
+        Funcionario funcionarioSalvo = funcionarioRepository.save(funcionario);
+
+        mockMvc.perform(
+                delete("/api/funcionarios/" + funcionarioSalvo.getId())
+        ).andExpect(status().isNoContent());
+
+        mockMvc.perform(
+                get("/api/funcionarios/" + funcionarioSalvo.getId())
+        ).andExpect(status().isNotFound());
     }
     
 }
